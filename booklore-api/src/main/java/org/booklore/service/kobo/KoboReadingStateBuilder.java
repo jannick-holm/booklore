@@ -46,9 +46,19 @@ public class KoboReadingStateBuilder {
                 .or(() -> Optional.ofNullable(defaultTime).map(OffsetDateTime::toString))
                 .orElse(null);
 
+        KoboReadingState.CurrentBookmark.Location location = null;
+        if (progress.getEpubProgress() != null) {
+            location = KoboReadingState.CurrentBookmark.Location.builder()
+                    .value(progress.getEpubProgress())
+                    .type("CFI")
+                    .source(progress.getEpubProgressHref())
+                    .build();
+        }
+
         return KoboReadingState.CurrentBookmark.builder()
                 .progressPercent(Math.round(progress.getEpubProgressPercent()))
                 .lastModified(lastModified)
+                .location(location)
                 .build();
     }
 

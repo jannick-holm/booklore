@@ -238,7 +238,7 @@ public class KoboReadingStateService {
                 progress.setLastReadTime(now);
             }
 
-            if (progress.getKoboProgressPercent() != null) {
+            if (progress.getKoboProgressPercent() != null && progress.getKoboProgressPercent() > 0) {
                 updateReadStatusFromKoboProgress(progress, now);
             }
 
@@ -278,6 +278,13 @@ public class KoboReadingStateService {
                 && fileProgress.getLastReadTime().isAfter(bookmarkTime);
 
         if (webReaderIsNewer) {
+            return false;
+        }
+
+        boolean koboProgressIsZero = bookmark.getProgressPercent() == 0;
+        boolean hasExistingProgress = (progress.getEpubProgressPercent() != null && progress.getEpubProgressPercent() > 0)
+                || (fileProgress != null && fileProgress.getProgressPercent() != null && fileProgress.getProgressPercent() > 0);
+        if (koboProgressIsZero && hasExistingProgress) {
             return false;
         }
 

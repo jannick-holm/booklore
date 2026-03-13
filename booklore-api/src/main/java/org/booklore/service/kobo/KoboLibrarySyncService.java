@@ -121,6 +121,8 @@ public class KoboLibrarySyncService {
                                         results.add(objectMapper.treeToValue(node, NewEntitlement.class));
                                     } else if (node.has("ChangedEntitlement")) {
                                         results.add(objectMapper.treeToValue(node, ChangedEntitlement.class));
+                                    } else if (node.has("NewTag") || node.has("ChangedTag") || node.has("DeletedTag")) {
+                                        results.add(objectMapper.treeToValue(node, KoboTagWrapper.class));
                                     } else {
                                         log.warn("Unknown entitlement type in Kobo response: {}", node);
                                     }

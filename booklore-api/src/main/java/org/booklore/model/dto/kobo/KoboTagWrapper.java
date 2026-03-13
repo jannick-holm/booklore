@@ -16,6 +16,7 @@ import tools.jackson.databind.annotation.JsonNaming;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class KoboTagWrapper implements Entitlement {
 
+    private WrappedTag newTag;
     private WrappedTag changedTag;
     private WrappedTag deletedTag;
 
