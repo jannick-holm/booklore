@@ -1,6 +1,7 @@
 package org.booklore.service.book;
 
 import org.booklore.exception.ApiError;
+import org.booklore.model.dto.OpdsUserV2;
 import org.booklore.model.dto.settings.KoboSettings;
 import org.booklore.model.entity.BookEntity;
 import org.booklore.model.entity.BookFileEntity;
@@ -10,6 +11,7 @@ import org.booklore.repository.BookRepository;
 import org.booklore.service.appsettings.AppSettingService;
 import org.booklore.service.kobo.KepubConversionService;
 import org.booklore.service.kobo.CbxConversionService;
+import org.booklore.service.opds.EpubOptimizationService;
 import org.booklore.util.FileUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
@@ -49,6 +51,7 @@ public class BookDownloadService {
     private final KepubConversionService kepubConversionService;
     private final CbxConversionService cbxConversionService;
     private final AppSettingService appSettingService;
+    private final EpubOptimizationService epubOptimizationService;
 
     public ResponseEntity<Resource> downloadBook(Long bookId) {
         try {
@@ -281,6 +284,66 @@ public class BookDownloadService {
 
         } catch (Exception e) {
             log.error("Failed to download kobo book {}: {}", bookId, e.getMessage(), e);
+            throw ApiError.FAILED_TO_DOWNLOAD_FILE.createException(bookId);
+        } finally {
+            cleanupTempDirectory(tempDir);
+        }
+    }
+
+    public ResponseEntity<Resource> downloadOpdsOptimizedBook(Long bookId, Long fileId, OpdsUserV2 opdsUser) {
+        BookFileEntity bookFile;
+        if (fileId != null) {
+            bookFile = bookFileRepository.findById(fileId)
+                    .orElseThrow(() -> ApiError.FILE_NOT_FOUND.createException(fileId));
+            if (!bookFile.getBook().getId().equals(bookId)) {
+                throw ApiError.FILE_NOT_FOUND.createException(fileId);
+            }
+        } else {
+            BookEntity bookEntity = bookRepository.findById(bookId)
+                    .orElseThrow(() -> ApiError.BOOK_NOT_FOUND.createException(bookId));
+            bookFile = bookEntity.getPrimaryBookFile();
+            if (bookFile == null) {
+                throw ApiError.FAILED_TO_DOWNLOAD_FILE.createException(bookId);
+            }
+        }
+
+        boolean isEpub = bookFile.getBookType() == BookFileType.EPUB;
+        boolean withinSizeLimit = bookFile.getFileSizeKb() <= (long) opdsUser.getEpubConversionLimitMb() * 1024;
+
+        if (!isEpub || !withinSizeLimit) {
+            return fileId != null ? downloadBookFile(bookId, fileId) : downloadBook(bookId);
+        }
+
+        Path tempDir = null;
+        try {
+            File epubFile = bookFile.getFullFilePath().toAbsolutePath().normalize().toFile();
+            if (!epubFile.exists()) {
+                throw ApiError.FAILED_TO_DOWNLOAD_FILE.createException(bookId);
+            }
+
+            tempDir = Files.createTempDirectory("opds-epub-optimization");
+            File optimized = epubOptimizationService.optimizeEpub(epubFile, tempDir.toFile(), opdsUser);
+
+            byte[] bytes = Files.readAllBytes(optimized.toPath());
+            Resource resource = new org.springframework.core.io.ByteArrayResource(bytes);
+
+            String filename = epubFile.getName();
+            String encodedFilename = java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+            String fallbackFilename = NON_ASCII_PATTERN.matcher(filename).replaceAll("_");
+            String contentDisposition = String.format("attachment; filename=\"%s\"; filename*=UTF-8''%s",
+                    fallbackFilename, encodedFilename);
+
+            log.info("Served optimized EPUB for book {} ({} bytes)", bookId, bytes.length);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .contentLength(bytes.length)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
+                    .body(resource);
+        } catch (Exception e) {
+            log.error("Failed to optimize EPUB for OPDS download of book {}: {}", bookId, e.getMessage(), e);
             throw ApiError.FAILED_TO_DOWNLOAD_FILE.createException(bookId);
         } finally {
             cleanupTempDirectory(tempDir);
