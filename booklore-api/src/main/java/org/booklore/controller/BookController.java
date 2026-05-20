@@ -85,6 +85,23 @@ public class BookController {
         return ResponseEntity.ok(bookService.getBook(bookId, withDescription));
     }
 
+    @Operation(summary = "Search books by title and author", description = "Lightweight title/author search returning matching books with progress. Intended for device clients (e.g. CrossPoint e-reader) that need to match a book by metadata without downloading the full library.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Matching books returned (may be empty)"),
+            @ApiResponse(responseCode = "400", description = "title parameter is required")
+    })
+    @GetMapping("/search")
+    public ResponseEntity<List<Book>> searchBooks(
+            @Parameter(description = "Title substring to search for (case-insensitive, partial match)")
+            @RequestParam String title,
+            @Parameter(description = "Author name substring to filter by (case-insensitive, partial match, optional)")
+            @RequestParam(required = false) String author) {
+        if (title == null || title.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(bookService.searchBooks(title, author));
+    }
+
     @Operation(summary = "Create a physical book", description = "Create a physical book without digital files. Requires library management permission or admin.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Physical book created successfully"),

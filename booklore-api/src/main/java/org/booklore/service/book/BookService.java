@@ -108,6 +108,48 @@ public class BookService {
                 .collect(Collectors.toSet());
     }
 
+    public List<Book> searchBooks(String title, String author) {
+        BookLoreUser user = authenticationService.getAuthenticatedUser();
+        boolean isAdmin = user.getPermissions().isAdmin();
+
+        List<BookEntity> bookEntities = bookRepository.searchByTitleContaining(title);
+
+        if (!isAdmin) {
+            Set<Long> userLibraryIds = getUserLibraryIds(user);
+            bookEntities = bookEntities.stream()
+                    .filter(b -> userLibraryIds.contains(b.getLibrary().getId()))
+                    .collect(Collectors.toList());
+        }
+
+        if (author != null && !author.isBlank()) {
+            String lc = author.trim().toLowerCase();
+            bookEntities = bookEntities.stream()
+                    .filter(b -> b.getMetadata() != null &&
+                            b.getMetadata().getAuthors().stream()
+                                    .anyMatch(a -> a.getName() != null &&
+                                            a.getName().toLowerCase().contains(lc)))
+                    .collect(Collectors.toList());
+        }
+
+        List<Book> books = bookQueryService.mapEntitiesToDto(bookEntities, false, user.getId());
+
+        Set<Long> bookIds = books.stream().map(Book::getId).collect(Collectors.toSet());
+        Map<Long, UserBookProgressEntity> progressMap =
+                readingProgressService.fetchUserProgress(user.getId(), bookIds);
+        Map<Long, UserBookFileProgressEntity> fileProgressMap =
+                readingProgressService.fetchUserFileProgress(user.getId(), bookIds);
+
+        books.forEach(book ->
+                readingProgressService.enrichBookWithProgress(
+                        book,
+                        progressMap.get(book.getId()),
+                        fileProgressMap.get(book.getId())
+                )
+        );
+
+        return books;
+    }
+
     public List<Book> getBooksByIds(Set<Long> bookIds, boolean withDescription) {
         BookLoreUser user = authenticationService.getAuthenticatedUser();
         boolean isAdmin = user.getPermissions().isAdmin();
