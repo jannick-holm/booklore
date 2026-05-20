@@ -16,4 +16,11 @@ public class OpdsUserV2 {
     @JsonIgnore
     private String passwordHash;
     private OpdsSortOrder sortOrder;
+    private boolean epubOptimizationEnabled;
+    private int epubJpegQuality;
+    private boolean epubEnableGrayscale;
+    private boolean epubResizeImages;
+    private int epubMaxImageWidth;
+    private int epubMaxImageHeight;
+    private int epubConversionLimitMb;
 }

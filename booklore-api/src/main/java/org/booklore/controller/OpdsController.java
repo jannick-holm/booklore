@@ -50,6 +50,12 @@ public class OpdsController {
             @Parameter(description = "ID of the book to download") @PathVariable("bookId") Long bookId,
             @Parameter(description = "Optional ID of a specific file format to download") @RequestParam(required = false) Long fileId) {
         opdsBookService.validateBookContentAccess(bookId, getOpdsUserId());
+        OpdsUserDetails opdsUserDetails = authenticationService.getOpdsUser();
+        if (opdsUserDetails != null
+                && opdsUserDetails.getOpdsUserV2() != null
+                && opdsUserDetails.getOpdsUserV2().isEpubOptimizationEnabled()) {
+            return bookDownloadService.downloadOpdsOptimizedBook(bookId, fileId, opdsUserDetails.getOpdsUserV2());
+        }
         if (fileId != null) {
             return bookDownloadService.downloadBookFile(bookId, fileId);
         }

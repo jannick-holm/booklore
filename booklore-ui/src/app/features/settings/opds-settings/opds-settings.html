@@ -275,6 +275,15 @@
                         [pTooltip]="t('users.editSortOrder')">
                       </p-button>
                       <p-button
+                        icon="pi pi-sliders-h"
+                        severity="secondary"
+                        size="small"
+                        [outlined]="true"
+                        [rounded]="true"
+                        (onClick)="openConversionSettings(user)"
+                        [pTooltip]="t('users.conversionSettings')">
+                      </p-button>
+                      <p-button
                         icon="pi pi-trash"
                         severity="danger"
                         size="small"
@@ -359,6 +368,89 @@
         </div>
       </ng-template>
     </p-dialog>
+
+    @if (conversionSettingsUserId !== null && conversionSettings) {
+      <p-dialog
+        [header]="t('conversionDialog.title')"
+        [visible]="true"
+        (visibleChange)="closeConversionSettings()"
+        [modal]="true"
+        [style]="{width: '440px'}">
+        <div class="dialog-form">
+          <div class="form-field">
+            <div class="toggle-row">
+              <label>{{ t('conversionDialog.enableOptimization') }}</label>
+              <p-toggleswitch [(ngModel)]="conversionSettings.epubOptimizationEnabled"></p-toggleswitch>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>{{ t('conversionDialog.jpegQuality') }}</label>
+            <p-inputnumber
+              [(ngModel)]="conversionSettings.epubJpegQuality"
+              [min]="1" [max]="100" [showButtons]="true"
+              suffix="%"
+              [style]="{width: '100%'}">
+            </p-inputnumber>
+          </div>
+          <div class="form-field">
+            <div class="toggle-row">
+              <label>{{ t('conversionDialog.grayscale') }}</label>
+              <p-toggleswitch [(ngModel)]="conversionSettings.epubEnableGrayscale"></p-toggleswitch>
+            </div>
+          </div>
+          <div class="form-field">
+            <div class="toggle-row">
+              <label>{{ t('conversionDialog.resizeImages') }}</label>
+              <p-toggleswitch [(ngModel)]="conversionSettings.epubResizeImages"></p-toggleswitch>
+            </div>
+          </div>
+          @if (conversionSettings.epubResizeImages) {
+            <div class="form-field">
+              <label>{{ t('conversionDialog.maxWidth') }}</label>
+              <p-inputnumber
+                [(ngModel)]="conversionSettings.epubMaxImageWidth"
+                [min]="100" [max]="4000" [showButtons]="true"
+                suffix="px"
+                [style]="{width: '100%'}">
+              </p-inputnumber>
+            </div>
+            <div class="form-field">
+              <label>{{ t('conversionDialog.maxHeight') }}</label>
+              <p-inputnumber
+                [(ngModel)]="conversionSettings.epubMaxImageHeight"
+                [min]="100" [max]="4000" [showButtons]="true"
+                suffix="px"
+                [style]="{width: '100%'}">
+              </p-inputnumber>
+            </div>
+          }
+          <div class="form-field">
+            <label>{{ t('conversionDialog.sizeLimitMb') }}</label>
+            <p-inputnumber
+              [(ngModel)]="conversionSettings.epubConversionLimitMb"
+              [min]="1" [max]="2000" [showButtons]="true"
+              suffix=" MB"
+              [style]="{width: '100%'}">
+            </p-inputnumber>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="dialog-actions">
+            <p-button
+              [label]="'common.cancel' | transloco"
+              severity="secondary"
+              [outlined]="true"
+              (onClick)="closeConversionSettings()">
+            </p-button>
+            <p-button
+              [label]="'common.save' | transloco"
+              severity="success"
+              (onClick)="saveConversionSettings(getUserById(conversionSettingsUserId)!)">
+            </p-button>
+          </div>
+        </ng-template>
+      </p-dialog>
+    }
 
     <p-confirmDialog></p-confirmDialog>
   } @else {

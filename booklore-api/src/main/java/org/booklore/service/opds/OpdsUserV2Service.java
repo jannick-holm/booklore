@@ -51,6 +51,13 @@ public class OpdsUserV2Service {
                     .username(request.getUsername())
                     .passwordHash(passwordEncoder.encode(request.getPassword()))
                     .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : OpdsSortOrder.RECENT)
+                    .epubOptimizationEnabled(request.isEpubOptimizationEnabled())
+                    .epubJpegQuality(request.getEpubJpegQuality())
+                    .epubEnableGrayscale(request.isEpubEnableGrayscale())
+                    .epubResizeImages(request.isEpubResizeImages())
+                    .epubMaxImageWidth(request.getEpubMaxImageWidth())
+                    .epubMaxImageHeight(request.getEpubMaxImageHeight())
+                    .epubConversionLimitMb(request.getEpubConversionLimitMb())
                     .build();
 
             OpdsUserV2 result = mapper.toDto(opdsUserV2Repository.save(opdsUserV2));
@@ -84,7 +91,14 @@ public class OpdsUserV2Service {
             throw new AccessDeniedException("You are not allowed to update this user");
         }
         
-        user.setSortOrder(request.sortOrder());
+        user.setSortOrder(request.getSortOrder());
+        if (request.getEpubOptimizationEnabled() != null) user.setEpubOptimizationEnabled(request.getEpubOptimizationEnabled());
+        if (request.getEpubJpegQuality() != null) user.setEpubJpegQuality(request.getEpubJpegQuality());
+        if (request.getEpubEnableGrayscale() != null) user.setEpubEnableGrayscale(request.getEpubEnableGrayscale());
+        if (request.getEpubResizeImages() != null) user.setEpubResizeImages(request.getEpubResizeImages());
+        if (request.getEpubMaxImageWidth() != null) user.setEpubMaxImageWidth(request.getEpubMaxImageWidth());
+        if (request.getEpubMaxImageHeight() != null) user.setEpubMaxImageHeight(request.getEpubMaxImageHeight());
+        if (request.getEpubConversionLimitMb() != null) user.setEpubConversionLimitMb(request.getEpubConversionLimitMb());
         OpdsUserV2 result = mapper.toDto(opdsUserV2Repository.save(user));
         auditService.log(AuditAction.OPDS_USER_UPDATED, "OpdsUser", userId, "Updated OPDS user: " + user.getUsername());
         return result;

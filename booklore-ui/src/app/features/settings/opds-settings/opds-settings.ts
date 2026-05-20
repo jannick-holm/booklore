@@ -2,6 +2,7 @@ import {Component, inject, OnDestroy, OnInit} from '@angular/core';
 
 import {Button} from 'primeng/button';
 import {InputText} from 'primeng/inputtext';
+import {InputNumber} from 'primeng/inputnumber';
 import {API_CONFIG} from '../../../core/config/api-config';
 import {Tooltip} from 'primeng/tooltip';
 import {TableModule} from 'primeng/table';
@@ -9,7 +10,7 @@ import {Dialog} from 'primeng/dialog';
 import {FormsModule} from '@angular/forms';
 import {ConfirmDialog} from 'primeng/confirmdialog';
 import {ConfirmationService, MessageService} from 'primeng/api';
-import {OpdsService, OpdsSortOrder, OpdsUserV2, OpdsUserV2CreateRequest} from './opds.service';
+import {EpubOptimizationSettings, OpdsService, OpdsSortOrder, OpdsUserV2, OpdsUserV2CreateRequest, OpdsUserV2UpdateRequest} from './opds.service';
 import {catchError, filter, take, takeUntil, tap} from 'rxjs/operators';
 import {UserService} from '../user-management/user.service';
 import {of, Subject} from 'rxjs';
@@ -25,6 +26,7 @@ import {TranslocoDirective, TranslocoPipe, TranslocoService} from '@jsverse/tran
   imports: [
     Button,
     InputText,
+    InputNumber,
     Tooltip,
     Dialog,
     FormsModule,
@@ -64,6 +66,9 @@ export class OpdsSettings implements OnInit, OnDestroy {
 
   editingUserId: number | null = null;
   editingSortOrder: OpdsSortOrder | null = null;
+
+  conversionSettingsUserId: number | null = null;
+  conversionSettings: EpubOptimizationSettings | null = null;
 
   private readonly destroy$ = new Subject<void>();
   dummyPassword: string = "***********************";
@@ -281,7 +286,18 @@ export class OpdsSettings implements OnInit, OnDestroy {
   saveSortOrder(user: OpdsUserV2): void {
     if (!this.editingSortOrder || !user.id) return;
 
-    this.opdsService.updateUser(user.id, this.editingSortOrder).pipe(
+    const request: OpdsUserV2UpdateRequest = {
+      sortOrder: this.editingSortOrder,
+      epubOptimizationEnabled: user.epubOptimizationEnabled,
+      epubJpegQuality: user.epubJpegQuality,
+      epubEnableGrayscale: user.epubEnableGrayscale,
+      epubResizeImages: user.epubResizeImages,
+      epubMaxImageWidth: user.epubMaxImageWidth,
+      epubMaxImageHeight: user.epubMaxImageHeight,
+      epubConversionLimitMb: user.epubConversionLimitMb,
+    };
+
+    this.opdsService.updateUser(user.id, request).pipe(
       takeUntil(this.destroy$),
       catchError(err => {
         console.error('Error updating sort order:', err);
@@ -298,6 +314,55 @@ export class OpdsSettings implements OnInit, OnDestroy {
       }
       this.cancelEdit();
     });
+  }
+
+  openConversionSettings(user: OpdsUserV2): void {
+    this.conversionSettingsUserId = user.id;
+    this.conversionSettings = {
+      epubOptimizationEnabled: user.epubOptimizationEnabled ?? false,
+      epubJpegQuality: user.epubJpegQuality ?? 85,
+      epubEnableGrayscale: user.epubEnableGrayscale ?? false,
+      epubResizeImages: user.epubResizeImages ?? false,
+      epubMaxImageWidth: user.epubMaxImageWidth ?? 480,
+      epubMaxImageHeight: user.epubMaxImageHeight ?? 800,
+      epubConversionLimitMb: user.epubConversionLimitMb ?? 100,
+    };
+  }
+
+  closeConversionSettings(): void {
+    this.conversionSettingsUserId = null;
+    this.conversionSettings = null;
+  }
+
+  saveConversionSettings(user: OpdsUserV2): void {
+    if (!this.conversionSettings || !user.id) return;
+
+    const request: OpdsUserV2UpdateRequest = {
+      sortOrder: user.sortOrder ?? 'RECENT',
+      ...this.conversionSettings,
+    };
+
+    this.opdsService.updateUser(user.id, request).pipe(
+      takeUntil(this.destroy$),
+      catchError(err => {
+        console.error('Error saving conversion settings:', err);
+        this.showMessage('error', this.t.translate('common.error'), this.t.translate('settingsOpds.sortUpdateError'));
+        return of(null);
+      })
+    ).subscribe(updatedUser => {
+      if (updatedUser) {
+        const index = this.users.findIndex(u => u.id === user.id);
+        if (index !== -1) {
+          this.users[index] = updatedUser;
+        }
+        this.showMessage('success', this.t.translate('common.success'), this.t.translate('settingsOpds.sortUpdateSuccess'));
+      }
+      this.closeConversionSettings();
+    });
+  }
+
+  getUserById(id: number | null): OpdsUserV2 | undefined {
+    return id != null ? this.users.find(u => u.id === id) : undefined;
   }
 
   ngOnDestroy(): void {
